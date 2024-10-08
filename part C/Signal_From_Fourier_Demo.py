@@ -65,22 +65,23 @@ sin_ax.set_ylim(coeff_range)
 sin_ax.set_yticks([coeff_range[0],0,coeff_range[1]])
 
 
-
+#--------------------------------------#
+## Plot initial data
 
 cos_ax.plot(x_limits,[0,0],"k")
 sin_ax.plot(x_limits,[0,0],"k")
 
-coeff_marker_style = dict(markerfacecolor = coeff_marker_face_colour,
-                          markeredgecolor = coeff_marker_face_colour,
-                          marker = "o",
-                          linestyle = "none",
-                          markersize = coeff_marker_size)
+coeff_face_style = dict(markerfacecolor = coeff_marker_face_colour,
+                        markeredgecolor = coeff_marker_face_colour,
+                        marker = "o",
+                        linestyle = "none",
+                        markersize = coeff_marker_size)
 
-coeff_marker_edge_style = dict(markerfacecolor = "none",
-                               markeredgecolor = coeff_marker_edge_colour,
-                               marker = "o",
-                               linestyle = "none",
-                               markersize = coeff_marker_size)
+coeff_edge_style = dict(markerfacecolor = "none",
+                        markeredgecolor = coeff_marker_edge_colour,
+                        marker = "o",
+                        linestyle = "none",
+                        markersize = coeff_marker_size)
 
 
 FACE_INDEX = 0
@@ -88,15 +89,14 @@ EDGE_INDEX = 1
 cos_coeff_markers = []
 sin_coeff_markers = []
 for iPoint in range(num_terms):
-    [cos_coeff_marker] = cos_ax.plot(iPoint,0,**coeff_marker_style)
-    [cos_coeff_marker_edge] = cos_ax.plot(iPoint,0,**coeff_marker_edge_style)
+    [cos_coeff_marker] = cos_ax.plot(iPoint,0,**coeff_face_style)
+    [cos_coeff_marker_edge] = cos_ax.plot(iPoint,0,**coeff_edge_style)
     cos_coeff_markers.append([cos_coeff_marker,cos_coeff_marker_edge])
     
-    [sin_coeff_marker] = sin_ax.plot(iPoint,0,**coeff_marker_style)
-    [sin_coeff_marker_edge] = sin_ax.plot(iPoint,0,**coeff_marker_edge_style)
+    [sin_coeff_marker] = sin_ax.plot(iPoint,0,**coeff_face_style)
+    [sin_coeff_marker_edge] = sin_ax.plot(iPoint,0,**coeff_edge_style)
     sin_coeff_markers.append([sin_coeff_marker,sin_coeff_marker_edge])
 
-plt.plot
 #--------------------------------------#
 ## Fourier series
 
@@ -157,6 +157,8 @@ def on_mouse_click(event):
     if event.button is MouseButton.LEFT:
         ax = event.inaxes
         if not ax:
+            return
+        if ax.get_label() not in [SIN_AX_LABEL, COS_AX_LABEL]:
             return
         
         mouse_x = event.xdata
