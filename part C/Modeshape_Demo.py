@@ -1,14 +1,18 @@
+#--------------------------------------#
+############### CONTROLS ############### 
+# Left click in coordinate space to start simulation
+# Left click outside coordinate space to pause/resume animation
+# Right click anywhere to reset
+#--------------------------------------#
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
 
 from matplotlib.backend_bases import MouseButton
 from matplotlib.patches import Rectangle
+from matplotlib.widgets import Button
 
 from functools import partial
-
-
-
 #--------------------------------------#
 ## System settings
 m1 = 5 # Mass 1
@@ -25,15 +29,19 @@ fps = 30   # Target FPS
 ## Plot settings
 disp_limit = 2
 
-box_length = 3
+box_length = 4
 box_one_centre = 0
 
 min_spring_length = 2
 num_spring_sections = 3
 
+modes_start_on = False
+
 ## Plot style
 marker_colour = "b"
+mode_colour = "r"
 marker_size = 6
+axes_line_width = 1
 #--------------------------------------#
 ## Equation of motion
 M = np.diag([m1,m2])
@@ -43,17 +51,18 @@ natural_frequency = np.sqrt(eigenvalues)
 num_time_points = fps*sim_time
 t = np.linspace(0,sim_time,num_time_points)
 
-def modal_displacement(t,initial_x):
-    #assume initial velocity is always zero
-    Q = np.linalg.inv(eigenvectors)@initial_x
-    q = np.array([Q[0]*np.cos(natural_frequency[0]*t),
-         Q[1]*np.cos(natural_frequency[1]*t)])
-    return q
-
-
 def modal_to_physical(q):
     return eigenvectors@q
 
+def physical_to_modal(x):
+    return np.linalg.inv(eigenvectors)@x
+
+def modal_displacement(t,initial_x):
+    #assume initial velocity is always zero
+    Q = physical_to_modal(initial_x)
+    q = np.array([Q[0]*np.cos(natural_frequency[0]*t),
+         Q[1]*np.cos(natural_frequency[1]*t)])
+    return q
 #--------------------------------------#
 ## Calculate system geometry
 box_distance = box_length + 2*disp_limit + min_spring_length
@@ -65,17 +74,20 @@ system_disp_lims = [max_disp_left,max_disp_right]
 plt.close("all")
 fig,(ax_system,ax_coords) = plt.subplots(1,2)
 
-ax_system.get_xaxis().set_visible(False)
-ax_system.get_yaxis().set_visible(False)
+#Mass spring system
+ax_system.axis("off")
 ax_system.set_aspect(1)
-
 
 ax_system.set_xlim(system_disp_lims)
 ax_system.set_ylim([0,box_length])
 
 
-ax_coords.set_label("coords")
+ax_system.plot([max_disp_left,max_disp_left],[0,box_length],"k")
+ax_system.plot([max_disp_right,max_disp_right],[0,box_length],"k")
 
+
+#Coordinate space
+ax_coords.set_label("coords")
 ax_coords.set_xlabel("$x_1$")
 ax_coords.set_ylabel("$x_2$")
 ax_coords.set_xticks([])
@@ -85,9 +97,31 @@ ax_coords.set_aspect(1)
 coord_lim = [-disp_limit,disp_limit]
 ax_coords.set_xlim(coord_lim)
 ax_coords.set_ylim(coord_lim)
-ax_coords.plot(coord_lim,[0,0],"k")
-ax_coords.plot([0,0],coord_lim,"k")
 
+physical_axes_style = dict(color = "k",
+                           linewidth = axes_line_width)
+
+ax_coords.plot(coord_lim,[0,0],**physical_axes_style)
+ax_coords.plot([0,0],coord_lim,**physical_axes_style)
+
+disp_end = np.array([disp_limit,disp_limit])
+max_q = physical_to_modal(disp_end)
+min_q = physical_to_modal(-disp_end)
+
+
+scale_factors = [disp_limit/min(abs(eigenvector)) for eigenvector in eigenvectors]
+eigen_xaxis = [scale_factor*eigenvector[0] for eigenvector,scale_factor in zip(eigenvectors.T,scale_factors)]
+eigen_yaxis = [scale_factor*eigenvector[1] for eigenvector,scale_factor in zip(eigenvectors.T,scale_factors)]
+
+eigen_axis_style = dict(linestyle = "--",
+                        color = "k",
+                        linewidth = axes_line_width)
+ax_coords.plot([eigen_xaxis[0],-eigen_xaxis[0]],[eigen_yaxis[0],-eigen_yaxis[0]],**eigen_axis_style)
+ax_coords.plot([eigen_xaxis[1],-eigen_xaxis[1]],[eigen_yaxis[1],-eigen_yaxis[1]],**eigen_axis_style)
+
+#Mode toggle button
+ax_button = fig.add_axes([0.549,0.75,0.2,0.075],label="button")
+mode_button = Button(ax_button,"Toggle Modes")
 
 #--------------------------------------#
 ## Plot initial data
@@ -107,6 +141,23 @@ system_box_one = ax_system.add_patch(lumped_mass_shapes[0])
 system_box_two = ax_system.add_patch(lumped_mass_shapes[1])
 
 
+
+mode_one_xy = [eigen_xaxis[0]/scale_factors[0],eigen_yaxis[0]/scale_factors[0]]
+mode_two_xy = [eigen_xaxis[1]/scale_factors[1],eigen_yaxis[1]/scale_factors[1]]
+
+mode_marker_style = dict(color = mode_colour,
+                         marker = ".",
+                         visible = modes_start_on)
+[mode_one_marker] = ax_coords.plot(0,0,zorder=5,**mode_marker_style)
+[mode_two_marker] = ax_coords.plot(0,0,zorder=5,**mode_marker_style)
+
+mode_line_style = dict(color= mode_colour,
+                       linewidth = axes_line_width,
+                       linestyle = "-",
+                       visible = modes_start_on)
+
+[mode_one_line] = ax_coords.plot([0,0],[0,0],zorder=5,**mode_line_style)
+[mode_two_line] = ax_coords.plot([0,0],[0,0],zorder=5,**mode_line_style)
 #--------------------------------------#
 ## Springs
 SPRING_SEQUENCE = [+1,-1,-1,+1] #defines direction of components in spring section 
@@ -200,6 +251,7 @@ def update_animation(frame_id,x,orbit):
     orbit.set_data(x_data,y_data)
     
     update_system(x_1,x_2)
+    plot_modal_coordinates(x_1,x_2)
     return orbit
 
 def update_system(x_1,x_2):
@@ -216,6 +268,24 @@ def update_system(x_1,x_2):
     update_spring_points(spring_one,x_spring_one)
     update_spring_points(spring_two,x_spring_two)
     update_spring_points(spring_three,x_spring_three)
+    
+def plot_modal_coordinates(x_1,x_2):
+    q = physical_to_modal(([x_1,x_2]))
+    
+    mode_one_data = [q[0]*mode_one_coord for mode_one_coord in mode_one_xy] 
+    mode_one_marker.set_xdata([mode_one_data[0]])
+    mode_one_marker.set_ydata([mode_one_data[1]])
+    
+    mode_two_data = [q[1]*mode_two_coord for mode_two_coord in mode_two_xy] 
+    mode_two_marker.set_xdata([mode_two_data[0]])
+    mode_two_marker.set_ydata([mode_two_data[1]])
+    
+    mode_one_line.set_xdata([x_1,mode_one_data[0]])
+    mode_one_line.set_ydata([x_2,mode_one_data[1]])
+    
+    mode_two_line.set_xdata([x_1,mode_two_data[0]])
+    mode_two_line.set_ydata([x_2,mode_two_data[1]])
+
     
 def pause_animation(animation):
     animation.pause()
@@ -234,8 +304,20 @@ def toggle_animation(animation):
         animation = pause_animation(animation)
     return animation
 #--------------------------------------#
-
 ## Define interaction
+
+class Button_interaction:
+    modes_on = modes_start_on
+    def button_pressed(self,event):
+        self.modes_on = not self.modes_on
+        
+        mode_one_marker.set_visible(self.modes_on)
+        mode_two_marker.set_visible(self.modes_on)
+        mode_one_line.set_visible(self.modes_on)
+        mode_two_line.set_visible(self.modes_on)
+        
+        event.canvas.draw()
+
 def on_mouse_move(event):
     
     if "animation" in globals():
@@ -251,12 +333,17 @@ def on_mouse_move(event):
     x_2 = event.ydata
 
     update_system(x_1,x_2)
+    plot_modal_coordinates(x_1,x_2)
     event.canvas.draw()
     
 
     
 def on_mouse_click(event):
     global animation
+    
+    ax = event.inaxes
+    if ax and ax.get_label() == "button":
+        return
     
     if event.button is MouseButton.LEFT:
         ax = event.inaxes
@@ -295,9 +382,18 @@ def on_mouse_click(event):
         for line in lines:
             if line.get_label() == "orbit":
                 line.remove()
+        
+        if not ax or ax.get_label() != "coords":
+            x_1,x_2 = [0,0]
+        else:
+            x_1,x_2 = [event.xdata,event.ydata]
+        update_system(x_1,x_2)
+        plot_modal_coordinates(x_1,x_2)
+            
         event.canvas.draw()
         
-       
-     
+
+button_callback = Button_interaction()
+mode_button.on_clicked(button_callback.button_pressed)
 mouse_move_binding_id = plt.connect('motion_notify_event', on_mouse_move)
 mouse_click_binding_id = plt.connect('button_press_event', on_mouse_click)
