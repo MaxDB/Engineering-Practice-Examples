@@ -186,7 +186,12 @@ def on_axes_leave(event):
     update_x()
     event.canvas.draw()
     
+def on_fig_close(event):
+    plt.disconnect(mouse_move_binding_id)
+    plt.disconnect(leave_axes_binding_id)
+    
 
 mouse_move_binding_id = plt.connect('motion_notify_event', on_mouse_move)
 leave_axes_binding_id = plt.connect('axes_leave_event', on_axes_leave)
 plt.connect('button_press_event', on_mouse_click)
+plt.connect('close_event', on_fig_close)
