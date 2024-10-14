@@ -402,6 +402,10 @@ class Animation_interaction:
             plot_modal_coordinates(x_1,x_2)
                 
             event.canvas.draw()
+
+def on_fig_close(event):
+    plt.disconnect(mouse_move_binding_id)
+    plt.disconnect(mouse_click_binding_id)
         
 button_callback = Button_interaction()
 mode_button.on_clicked(button_callback.button_pressed)
@@ -409,3 +413,4 @@ mode_button.on_clicked(button_callback.button_pressed)
 mouse_callback = Animation_interaction()
 mouse_move_binding_id = plt.connect('motion_notify_event', mouse_callback.on_mouse_move)
 mouse_click_binding_id = plt.connect('button_press_event', mouse_callback.on_mouse_click)
+plt.connect('close_event', on_fig_close)
