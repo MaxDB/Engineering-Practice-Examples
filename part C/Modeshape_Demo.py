@@ -4,6 +4,43 @@
 # Left click outside coordinate space to pause/resume animation
 # Right click anywhere to reset
 #--------------------------------------#
+## User settings
+# System settings
+m1 = 5 # Mass 1
+m2 = 5 # Mass 2
+
+k1 = 50  # Spring 1
+k2 = 50  # Spring 2
+k3 = 10  # Spring 3
+
+# Animation settings
+sim_time = 10  # Time of simulation
+fps = 30   # Target FPS
+
+# Plot settings
+disp_limit = 2 # maximum displacement for x_1 and x_2
+
+box_length = 4 # lumped mass square dimension
+
+
+min_spring_length = 2 # when fully compressed, implies spring component length
+num_spring_sections = 3 # number of zig-zags
+
+
+modes_start_on = False #whether modal dispalcements are initially shown
+button_text = "Toggle modes" 
+
+# Plot style
+spring_line_width = 1 
+
+marker_colour = "b"
+marker_size = 6
+
+mode_colour = "r"
+mode_marker_size = 4
+axes_line_width = 1
+#--------------------------------------#
+#--------------------------------------#
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as ani
@@ -13,35 +50,6 @@ from matplotlib.patches import Rectangle
 from matplotlib.widgets import Button
 
 from functools import partial
-#--------------------------------------#
-## System settings
-m1 = 5 # Mass 1
-m2 = 5 # Mass 2
-
-k1 = 50  # Spring 1
-k2 = 50  # Spring 2
-k3 = 10  # Spring 3
-
-## Animation settings
-sim_time = 10  # Time of simulation
-fps = 30   # Target FPS
-
-## Plot settings
-disp_limit = 2
-
-box_length = 4
-box_one_centre = 0
-
-min_spring_length = 2
-num_spring_sections = 3
-
-modes_start_on = False
-
-## Plot style
-marker_colour = "b"
-mode_colour = "r"
-marker_size = 6
-axes_line_width = 1
 #--------------------------------------#
 ## Equation of motion
 M = np.diag([m1,m2])
@@ -65,15 +73,18 @@ def modal_displacement(t,initial_x):
     return q
 #--------------------------------------#
 ## Calculate system geometry
+BOX_ONE_CENTRE = 0
 box_distance = box_length + 2*disp_limit + min_spring_length
-max_disp_left = box_one_centre - disp_limit - min_spring_length
-max_disp_right = box_one_centre + box_length + box_distance + disp_limit + min_spring_length
-system_disp_lims = [max_disp_left,max_disp_right]
+max_disp_left = BOX_ONE_CENTRE - disp_limit - min_spring_length
+max_disp_right = BOX_ONE_CENTRE + box_length + box_distance + disp_limit + min_spring_length
+system_disp_lims = [max_disp_left*1.02,max_disp_right*1.02]
 #--------------------------------------#
 ## Setup figures
 plt.close("all")
-fig,(ax_system,ax_coords) = plt.subplots(1,2)
+fig,([ax_placeholder,ax_button],[ax_system,ax_coords]) = plt.subplots(2,2,height_ratios=[1, 15])
+fig.tight_layout(h_pad=-3)
 
+ax_placeholder.axis("off")
 #Mass spring system
 ax_system.axis("off")
 ax_system.set_aspect(1)
@@ -81,9 +92,12 @@ ax_system.set_aspect(1)
 ax_system.set_xlim(system_disp_lims)
 ax_system.set_ylim([0,box_length])
 
-
-ax_system.plot([max_disp_left,max_disp_left],[0,box_length],"k")
-ax_system.plot([max_disp_right,max_disp_right],[0,box_length],"k")
+ground_style = dict(color="k",
+                    linewidth = 2)
+ground_length = 0.8*box_length
+ground_y = [box_length/2 + ground_length/2,box_length/2 - ground_length/2]
+ax_system.plot(2*[max_disp_left],ground_y,**ground_style)
+ax_system.plot(2*[max_disp_right],ground_y,**ground_style)
 
 
 #Coordinate space
@@ -115,18 +129,19 @@ eigen_yaxis = [scale_factor*eigenvector[1] for eigenvector,scale_factor in zip(e
 
 eigen_axis_style = dict(linestyle = "--",
                         color = "k",
-                        linewidth = axes_line_width)
-ax_coords.plot([eigen_xaxis[0],-eigen_xaxis[0]],[eigen_yaxis[0],-eigen_yaxis[0]],**eigen_axis_style)
-ax_coords.plot([eigen_xaxis[1],-eigen_xaxis[1]],[eigen_yaxis[1],-eigen_yaxis[1]],**eigen_axis_style)
+                        linewidth = axes_line_width,
+                        visible = modes_start_on)
+[mode_one_axis] = ax_coords.plot([eigen_xaxis[0],-eigen_xaxis[0]],[eigen_yaxis[0],-eigen_yaxis[0]],**eigen_axis_style)
+[mode_two_axis] = ax_coords.plot([eigen_xaxis[1],-eigen_xaxis[1]],[eigen_yaxis[1],-eigen_yaxis[1]],**eigen_axis_style)
 
-#Mode toggle button
-ax_button = fig.add_axes([0.549,0.75,0.2,0.075],label="button")
-mode_button = Button(ax_button,"Toggle Modes")
+#Mode toggle butto
+ax_button.set_label("button")
+#ax_button = fig.add_axes([0.549,0.75,0.2,0.075],label="button")
+mode_button = Button(ax_button,button_text)
 
 #--------------------------------------#
 ## Plot initial data
-marker_style = dict(markerfacecolor = marker_colour,
-                    markeredgecolor = marker_colour,
+marker_style = dict(color = marker_colour,
                     marker = "o",
                     linestyle = "none",
                     markersize = marker_size)
@@ -134,7 +149,7 @@ marker_style = dict(markerfacecolor = marker_colour,
 [coord_marker] = ax_coords.plot(0,0,zorder=10,**marker_style)
 
 
-lumped_mass_shapes = [Rectangle((box_one_centre+offset,0),box_length,box_length)
+lumped_mass_shapes = [Rectangle((BOX_ONE_CENTRE+offset,0),box_length,box_length)
                      for offset in (0,box_distance)]
 
 system_box_one = ax_system.add_patch(lumped_mass_shapes[0])
@@ -146,7 +161,8 @@ mode_one_xy = [eigen_xaxis[0]/scale_factors[0],eigen_yaxis[0]/scale_factors[0]]
 mode_two_xy = [eigen_xaxis[1]/scale_factors[1],eigen_yaxis[1]/scale_factors[1]]
 
 mode_marker_style = dict(color = mode_colour,
-                         marker = ".",
+                         marker = "o",
+                         markersize = mode_marker_size,
                          visible = modes_start_on)
 [mode_one_marker] = ax_coords.plot(0,0,zorder=5,**mode_marker_style)
 [mode_two_marker] = ax_coords.plot(0,0,zorder=5,**mode_marker_style)
@@ -202,9 +218,13 @@ spring_one_points = get_spring_points([end_left,box_one_left],box_mid_height,spr
 spring_two_points = get_spring_points([box_one_right,box_two_left],box_mid_height,spring_two_length)
 spring_three_points = get_spring_points([box_two_right,end_right],box_mid_height,spring_three_length)
 
-[spring_one] = ax_system.plot(spring_one_points[0],spring_one_points[1],"k")
-[spring_two] = ax_system.plot(spring_two_points[0],spring_two_points[1],"k")
-[spring_three] = ax_system.plot(spring_three_points[0],spring_three_points[1],"k")
+
+spring_style = dict(linewidth = spring_line_width,
+                    color = "k")
+
+[spring_one] = ax_system.plot(spring_one_points[0],spring_one_points[1],**spring_style)
+[spring_two] = ax_system.plot(spring_two_points[0],spring_two_points[1],**spring_style)
+[spring_three] = ax_system.plot(spring_three_points[0],spring_three_points[1],**spring_style)
 
 
 def update_spring_points(spring,x):
@@ -236,8 +256,6 @@ def update_spring_points(spring,x):
 
 #--------------------------------------#
 ## Setup animation
-
-    
 def update_animation(frame_id,x,orbit):
     x_1 = x[0,frame_id]
     x_2 = x[1,frame_id]
@@ -286,23 +304,6 @@ def plot_modal_coordinates(x_1,x_2):
     mode_two_line.set_xdata([x_1,mode_two_data[0]])
     mode_two_line.set_ydata([x_2,mode_two_data[1]])
 
-    
-def pause_animation(animation):
-    animation.pause()
-    animation.paused = True    
-    return animation
-    
-def resume_animation(animation):
-    animation.resume()
-    animation.paused = False
-    return animation
-    
-def toggle_animation(animation):
-    if animation.paused:
-        animation = resume_animation(animation)
-    else:
-        animation = pause_animation(animation)
-    return animation
 #--------------------------------------#
 ## Define interaction
 
@@ -315,90 +316,96 @@ class Button_interaction:
         mode_two_marker.set_visible(self.modes_on)
         mode_one_line.set_visible(self.modes_on)
         mode_two_line.set_visible(self.modes_on)
+        mode_one_axis.set_visible(self.modes_on)
+        mode_two_axis.set_visible(self.modes_on)
         
         event.canvas.draw()
 
-def on_mouse_move(event):
-    
-    if "animation" in globals():
-        #checks if an animation is currently playing
-        return
-    ax = event.inaxes
-    if not ax:
-        return
-    if ax.get_label() != "coords":
-        return
-    
-    x_1 = event.xdata
-    x_2 = event.ydata
+class Animation_interaction:
+    animation = []
+    animation_paused = []
+    def animation_exists(self):
+        return self.animation and self.animation.event_source
 
-    update_system(x_1,x_2)
-    plot_modal_coordinates(x_1,x_2)
-    event.canvas.draw()
-    
+    def pause_animation(self):
+        if not self.animation_exists(): return
 
+        self.animation.pause()
+        self.animation_paused = True    
+        
+    def resume_animation(self):
+        if not self.animation_exists(): return
+        
+        self.animation.resume()
+        self.animation_paused = False
+        
+    def toggle_animation(self):
+        if not self.animation_exists(): return
+        
+        if self.animation_paused: self.resume_animation()
+        else: self.pause_animation()
     
-def on_mouse_click(event):
-    global animation
-    
-    ax = event.inaxes
-    if ax and ax.get_label() == "button":
-        return
-    
-    if event.button is MouseButton.LEFT:
+    def on_mouse_move(self,event):
+        if self.animation_exists(): return
         ax = event.inaxes
-        if not ax or ax.get_label() != "coords":
-            if "animation" in globals():
-                #checks if an animation exists
-                animation = toggle_animation(animation)
-            return
+        if not ax: return
+        if ax.get_label() != "coords": return
         
-        
-        #animate dynamics from selected initial condition
-        if "animation" in globals():
-            animation = pause_animation(animation)
         x_1 = event.xdata
         x_2 = event.ydata
-        
-        q = modal_displacement(t, [x_1,x_2])
-        x = modal_to_physical(q)
-        
-        [orbit] = ax_coords.plot([],[],label="orbit")
-
-        
-        animation = ani.FuncAnimation(fig, partial(update_animation,orbit = orbit,x=x),
-                                      frames=range(num_time_points),interval = 1000/fps)
-        animation.paused = False
-        event.canvas.draw()
-        
-    elif event.button is MouseButton.RIGHT:
-        #clear old animations
-        if "animation" in globals():
-            #checks if an animation exists
-            animation = pause_animation(animation)
-            del animation
-        
-        lines = ax_coords.get_children()
-        for line in lines:
-            if line.get_label() == "orbit":
-                line.remove()
-        
-        if not ax or ax.get_label() != "coords":
-            x_1,x_2 = [0,0]
-        else:
-            x_1,x_2 = [event.xdata,event.ydata]
+    
         update_system(x_1,x_2)
         plot_modal_coordinates(x_1,x_2)
-            
         event.canvas.draw()
         
-def on_fig_close(event):
-    plt.disconnect(mouse_move_binding_id)
-    plt.disconnect(mouse_click_binding_id)
-
-
+    def on_mouse_click(self,event):
+        ax = event.inaxes
+        if ax and ax.get_label() == "button": return
+        
+        if event.button is MouseButton.LEFT:
+            ax = event.inaxes
+            if not ax or ax.get_label() != "coords":
+                self.toggle_animation()
+                return
+            
+            #animate dynamics from selected initial condition
+            self.pause_animation()
+            x_1 = event.xdata
+            x_2 = event.ydata
+            
+            q = modal_displacement(t, [x_1,x_2])
+            x = modal_to_physical(q)
+            
+            [orbit] = ax_coords.plot([],[],label="orbit")
+    
+            self.animation = ani.FuncAnimation(fig, partial(update_animation,orbit = orbit,x=x),
+                                          frames=range(num_time_points),interval = 1000/fps,repeat = False)
+            self.animation_paused = False
+            event.canvas.draw()
+            
+        elif event.button is MouseButton.RIGHT:
+            #clear old animations
+            self.pause_animation()
+            if self.animation_exists(): self.animation = []
+            
+            lines = ax_coords.get_children()
+            for line in lines:
+                if line.get_label() == "orbit":
+                    line.remove()
+            
+            if not ax or ax.get_label() != "coords":
+                x_1,x_2 = [0,0]
+            else:
+                x_1,x_2 = [event.xdata,event.ydata]
+                
+            update_system(x_1,x_2)
+            plot_modal_coordinates(x_1,x_2)
+                
+            event.canvas.draw()
+        
 button_callback = Button_interaction()
 mode_button.on_clicked(button_callback.button_pressed)
-mouse_move_binding_id = plt.connect('motion_notify_event', on_mouse_move)
-mouse_click_binding_id = plt.connect('button_press_event', on_mouse_click)
-plt.connect('close_event', on_fig_close)
+
+mouse_callback = Animation_interaction()
+mouse_move_binding_id = plt.connect('motion_notify_event', mouse_callback.on_mouse_move)
+mouse_click_binding_id = plt.connect('button_press_event', mouse_callback.on_mouse_click)
