@@ -1,8 +1,7 @@
-import matplotlib.pyplot as plt
-from matplotlib.backend_bases import MouseButton
-import numpy as np
-
-
+#--------------------------------------#
+############### CONTROLS ############### 
+# Left click to set coefficients
+# Right click in axis to reset corresponding coefficients 
 #--------------------------------------#
 ## Plotting settings
 num_terms = 10 #number of harmonics
@@ -26,6 +25,11 @@ cos_y_label = "Cos Amplitude"
 sin_y_label = "Sin Amplitude"
 
 #--------------------------------------#
+import matplotlib.pyplot as plt
+from matplotlib.backend_bases import MouseButton
+import numpy as np
+#--------------------------------------#
+
 ## Setup figures
 PERIOD = 1
 COS_AX_LABEL = "cos"
@@ -154,12 +158,11 @@ def on_mouse_move(event):
         
 
 def on_mouse_click(event):
+    ax = event.inaxes
+    if not ax: return
     if event.button is MouseButton.LEFT:
-        ax = event.inaxes
-        if not ax:
-            return
-        if ax.get_label() not in [SIN_AX_LABEL, COS_AX_LABEL]:
-            return
+        
+        if ax.get_label() not in [SIN_AX_LABEL, COS_AX_LABEL]: return
         
         mouse_x = event.xdata
         nearest_coeff = round(mouse_x)
@@ -174,9 +177,17 @@ def on_mouse_click(event):
         event.canvas.draw()
         
     elif event.button is MouseButton.RIGHT:
-        print('disconnecting callback')
-        plt.disconnect(mouse_move_binding_id)
-        plt.disconnect(leave_axes_binding_id)
+        if ax.get_label() == SIN_AX_LABEL:
+            for sin_marker in sin_coeff_markers:
+                sin_marker[FACE_INDEX].set_ydata([0])
+                sin_marker[EDGE_INDEX].set_ydata([0])
+        elif ax.get_label() == COS_AX_LABEL:
+            for cos_marker in cos_coeff_markers:
+                cos_marker[FACE_INDEX].set_ydata([0])
+                cos_marker[EDGE_INDEX].set_ydata([0])
+        
+        update_x()
+        event.canvas.draw()
         
 def on_axes_leave(event):
     for (cos_marker,sin_marker) in zip(cos_coeff_markers,sin_coeff_markers):
@@ -189,9 +200,10 @@ def on_axes_leave(event):
 def on_fig_close(event):
     plt.disconnect(mouse_move_binding_id)
     plt.disconnect(leave_axes_binding_id)
+    plt.disconnect(mouse_click_binding_id)
     
 
 mouse_move_binding_id = plt.connect('motion_notify_event', on_mouse_move)
 leave_axes_binding_id = plt.connect('axes_leave_event', on_axes_leave)
-plt.connect('button_press_event', on_mouse_click)
+mouse_click_binding_id = plt.connect('button_press_event', on_mouse_click)
 plt.connect('close_event', on_fig_close)
